@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.style as mplstyle
+mplstyle.use('fast')
 
 ##definitions
 MIN_X = -20
@@ -11,7 +13,7 @@ K_MEANS = 3
 
 SAMPLE_SIZE = 10
 
-colors = ["red", "blue", "green"]
+colors = ["red", "blue", "green", "black"]
 
 
 class Item:
@@ -20,7 +22,7 @@ class Item:
         magnitude = np.random.random() * radius
         self.x = np.cos(direction)*magnitude + center[0]
         self.y = np.sin(direction)*magnitude + center[1]
-        self.group = 0
+        self.group = -1
 
 
 def generate_set(center: tuple, radius: float, count: int) -> list:
@@ -41,7 +43,36 @@ def plotting(title) -> None:
     # plt.show()
     plt.title(title)
     plt.savefig(f'{title}.png')
+    # pass
 
+
+def update_sets(sets, kmeans):
+    for element in sets:
+        max_distance = 100000
+        for index, kmean in enumerate(kmeans):
+            current_distance = np.square(
+                    np.linalg.norm(
+                        np.array((element.x, element.y)) - np.array((kmean.x, kmean.y))
+                    )
+                )
+            if current_distance < max_distance:
+                max_distance = current_distance
+                element.group = index
+
+def update_means(Item, sets, kmeans):
+    for index, kmean in enumerate(kmeans):
+        starting_vector = np.array((0, 0))
+        counter = 0
+        for element in sets:
+            if element.group == index:
+                starting_vector = starting_vector + np.array((element.x, element.y))
+                counter += 1
+        if counter > 0:
+            kmean.x = starting_vector[0] / counter
+            kmean.y = starting_vector[1] / counter
+        else:
+            print(f'Counter for index {index} was 0! regenerating...')
+            kmeans[index] = Item(center=(np.random.random(), np.random.random()), radius=20)
 
 if __name__ == "__main__":
     #set creation
@@ -62,31 +93,9 @@ if __name__ == "__main__":
     for iteration in range(10):
         print(f'iteration {iteration}...')
         # sorting groups respect means
-        for element in sets:
-            max_distance = 100000
-            for index, kmean in enumerate(kmeans):
-                current_distance = np.square(
-                    np.linalg.norm(
-                        np.array((element.x, element.y)) - np.array((kmean.x, kmean.y))
-                    )
-                )
-                if current_distance < max_distance:
-                    max_distance = current_distance
-                    element.group = index
+        update_sets(sets, kmeans)
 
         # updating the means
-        for index, kmean in enumerate(kmeans):
-            starting_vector = np.array((0, 0))
-            counter = 0
-            for element in sets:
-                if element.group == index:
-                    starting_vector = starting_vector + np.array((element.x, element.y))
-                    counter += 1
-            if counter > 0:
-                kmean.x = starting_vector[0] / counter
-                kmean.y = starting_vector[1] / counter
-            else:
-                print(f'Counter for index {index} was 0! regenerating...')
-                kmeans[index] = Item(center=(np.random.random(), np.random.random()), radius=20)
+        update_means(Item, sets, kmeans)
 
         plotting(f'iteration_{iteration}')
