@@ -1,10 +1,11 @@
 import numpy as np
 import pygame
-import time
 
 ##definitions
 K_MEANS = 3
 SAMPLE_SIZE = 300
+SECONDARY_CENTERS = 8.5  # 10.5 works
+BACKGROUND_COLOR = "#24273a"
 colors = ["#ed8796", "#8aadf4", "#a6da95", "#eed49f", "#c6a0f6", "#f5a97f"]
 
 
@@ -54,33 +55,33 @@ def update_means(Item, sets, kmeans):
             kmeans[index] = Item(center=(np.random.random(), np.random.random()), radius=20)
 
 
-def reload_sets():
+def reload_everything():
     new_sets = []
     new_sets.extend(generate_set(center=(0.0, 0.0), radius=10, count=SAMPLE_SIZE))  # Center distribution
-    new_sets.extend(generate_set(center=(-10.5, 10.5), radius=5, count=int(SAMPLE_SIZE/2)))  # Left distribution
-    new_sets.extend(generate_set(center=(10.5, 10.5), radius=5, count=int(SAMPLE_SIZE/2)))  # Right distribution
-    return new_sets
+    new_sets.extend(generate_set(center=(-SECONDARY_CENTERS, SECONDARY_CENTERS), radius=5, count=int(SAMPLE_SIZE/2)))  # Left distribution
+    new_sets.extend(generate_set(center=(SECONDARY_CENTERS, SECONDARY_CENTERS), radius=5, count=int(SAMPLE_SIZE/2)))  # Right distribution
 
-def reload_kmeans():
     new_kmeans = []
     for i in range(K_MEANS):
         new_kmeans.append(Item(center=(np.random.random(), np.random.random()), radius=20))
-    return new_kmeans
+    return new_sets, new_kmeans
 
+def translate_points(x, y):
+    pos_x = x * SCALING_FACTOR + SCREEN_WIDTH/2
+    pos_y = y * -SCALING_FACTOR + 3*SCREEN_HEIGHT/5
+    return pos_x, pos_y
 
 if __name__ == "__main__":
     #set creation
-    sets = reload_sets()
-    # random kmeans
-    kmeans = reload_kmeans()
+    sets, kmeans = reload_everything()
 
     # pygame setup
-    pygame.init()
-    SCREEN_WIDTH = 1280
+    SCREEN_WIDTH = 1024
     SCREEN_HEIGHT = 720
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
     running = True
+    pygame.display.set_caption(f'K-means implementation')
 
     #Iteration counter
     iteration = 0
@@ -88,49 +89,39 @@ if __name__ == "__main__":
     while running:
         # poll for events
         for event in pygame.event.get():
-            if event.type == pygame.TEXTINPUT:
-                if event.dict['text'] == ' ':
-                    print(f'iteration {iteration}...')
+            # print(event)
+            if event.type == pygame.KEYDOWN:
+                if event.dict['unicode'] == ' ':
                     # sorting groups respect means
                     update_sets(sets, kmeans)
                     # updating the means
                     update_means(Item, sets, kmeans)
                     iteration +=1
+                    pygame.display.set_caption(f'iteration {iteration}')
 
-                if event.dict['text'] == 'r':
+                if event.dict['unicode'] == 'r':
                     print(f'Reloading everything...')
-                    # sorting groups respect means
-                    sets = reload_sets()
-                    # updating the means
-                    kmeans = reload_kmeans()
+                    sets, kmeans = reload_everything()
                     iteration = 0
+                    pygame.display.set_caption(f'Reloaded!')
 
-        # pygame.QUIT event means the user clicked X to close your window
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.VIDEORESIZE:
-                # There's some code to add back window content here.
-                SCREEN_WIDTH, SCREEN_HEIGHT = screen.get_width(), screen.get_height()
-                screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT),
-                                                pygame.RESIZABLE)
 
         # fill the screen with a color to wipe away anything from last frame
-        screen.fill("#363a4f")
+        screen.fill(BACKGROUND_COLOR)
 
         # RENDER YOUR GAME HERE
         for element in sets:
             # plotting sets
             SCALING_FACTOR = 20
-            pos_x = element.x * SCALING_FACTOR + SCREEN_WIDTH/2
-            pos_y = element.y * -SCALING_FACTOR + SCREEN_HEIGHT/2
+            pos_x, pos_y = translate_points(element.x, element.y)
             pygame.draw.circle(surface=screen, color=colors[element.group], center=[pos_x, pos_y], radius=4.)
         for index in range(K_MEANS):
-            color = colors[index]
-            pos_x = kmeans[index].x * SCALING_FACTOR + SCREEN_WIDTH/2
-            pos_y = kmeans[index].y * -SCALING_FACTOR + SCREEN_HEIGHT/2
-            pygame.draw.circle(surface=screen, color=color, center=[pos_x, pos_y], radius=8.)
+            pos_x, pos_y = translate_points(kmeans[index].x, kmeans[index].y)
+            pygame.draw.circle(surface=screen, color=colors[index], center=[pos_x, pos_y], radius=8.)
 
-        # flip() the display to put your work on screen
+        # update sccreen
         pygame.display.update()
 
         clock.tick(60)  # limits FPS to 60
